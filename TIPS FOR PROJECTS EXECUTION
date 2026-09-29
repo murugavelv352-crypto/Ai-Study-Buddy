@@ -1,0 +1,103 @@
+Okay, *SECURE CLOUD STORAGE WITH GRAPHICAL PASSWORD AUTHENTICATION* project-a system la run panna full step-by-step execution. Itha report la *Chapter 5: Implementation & Execution* nu podalam.
+
+---
+
+*STEPS FOR PROJECT EXECUTION - 10 STEPS*
+
+*STEP 0: PREREQUISITES INSTALL PANNU*
+1. Python 3.11 install pannu (python.org)
+2. MySQL install pannu (XAMPP install panna easy)
+3. VS Code install pannu
+4. AWS account create pannu (S3 Bucket ku) - Free tier pothum
+   illa na Firebase use pannalam, no card needed
+*STEP 1: PROJECT FOLDER CREATE PANNU*
+mkdir SecureCloudProject
+cd SecureCloudProject
+python -m venv venv
+venv\Scripts\activate  # Windows ku
+pip install flask flask-sqlalchemy boto3 pycryptodome pillow
+*STEP 2: DATABASE SETUP*
+- XAMPP open panni MySQL Start pannu
+- phpMyAdmin la poi `secure_cloud_db` create pannu
+- Naan kudutha SCHEMA SQL ah paste panni run pannu (users, files tables create aagum)
+
+*STEP 3: AWS S3 BUCKET SETUP*
+- AWS console -> S3 -> Create Bucket -> Name: `secure-cloud-graphical-123`
+- Region: ap-south-1 (Mumbai)
+- Uncheck "Block all public access" -> Create
+- IAM -> User create -> Access Key, Secret Key eduthu vechukko
+
+*STEP 4: FOLDER STRUCTURE VECHUKKO*
+SecureCloudProject/
+├── app.py (main file)
+├── models.py (naan kudutha Flask model)
+├── config.py
+├── /static
+│   ├── /images (graphical password ku 5 images ve)
+│   │   ├── img1.jpg, img2.jpg, img3.jpg
+│   └── /css, /js
+├── /templates
+│   ├── register.html
+│   ├── login.html
+│   └── dashboard.html
+└── /uploads (temp folder)
+*STEP 5: http://CONFIG.PY LA KEYS SET PANNU*
+config.py
+AWS_ACCESS_KEY = "YOUR_AWS_KEY"
+AWS_SECRET_KEY = "YOUR_SECRET_KEY"
+S3_BUCKET = "secure-cloud-graphical-123"
+SECRET_KEY = "your_flask_secret"
+SQLALCHEMY_DATABASE_URI = "mysql://root:@localhost/secure_cloud_db"
+*STEP 6: GRAPHICAL PASSWORD CAPTURE CODE - http://register.html*
+<!-- Image mele click panna points capture pannum -->
+<canvas id="imgCanvas"></canvas>
+<script>
+let points = [];
+canvas.addEventListener('click', (e) => {
+  let x = e.offsetX; let y = e.offsetY;
+  points.push({x,y});
+  if(points.length == 3) {
+    document.getElementById('graphicalData').value = JSON.stringify(points);
+  }
+});
+</script>
+*STEP 7: http://APP.PY LA MAIN LOGIC - Encryption + Upload*
+Flask route example
+@app.route('/upload', methods=['POST'])
+def upload():
+    file = request.files['file']
+    # 1. Generate key from graphical hash
+    key = SHA256(user.graphical_hash + user.salt).digest()[:32]
+    # 2. Encrypt file
+    cipher = AES.new(key, AES.MODE_CBC)
+    encrypted = cipher.encrypt(pad(file.read(), AES.block_size))
+    # 3. Upload to S3
+    s3.upload_fileobj(encrypted, S3_BUCKET, file.filename + ".enc")
+    # 4. Save to DB
+    save_to_db(file.filename, cloud_path)
+    return "Upload Success - Encrypted & Stored"
+*STEP 8: RUN THE PROJECT*
+python app.py
+Browser la poi: http://127.0.0.1:5000
+*STEP 9: 
+
+*STEP 10: PROJECT REPORT & PPT READY PANNU*
+- Screenshots eduthu: Register, Login, DB table with hash, S3 bucket with .enc files, Upload success
+- PPT la Architecture + DFD + Live Demo video potta sema mark
+
+---
+
+*IMPORTANT COMMANDS LIST:*
+pip install flask
+pip install pycryptodome
+pip install boto3
+pip install flask-sqlalchemy pymysql
+python app.py
+*Common Errors & Fix:*
+- `No module named Crypto` -> `pip uninstall crypto` then `pip install pycryptodome`
+- MySQL connection error -> XAMPP la MySQL running ah nu check pannu
+- S3 error -> Access key correct ah nu paaru
+
+Intha 10 steps ah follow panna project 100% run aagum da.
+
+Unakku naan *app.py full working code-a ready panni thara va?* Athula register + login + upload + download ellam included-a irukum. Sollu, naan full code ah tharen.

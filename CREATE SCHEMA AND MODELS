@@ -1,0 +1,146 @@
+Okay, *SCHEMA AND MODELS* full coding + report la elutha vendiya text-a tharen. Itha copy-paste panna 4-5 pages varum.
+
+---
+
+*TEXT FOR REPORT (Chapter: Database Design)*
+
+*4.5 SCHEMA AND DATA MODELING*
+
+This project uses a relational database to store user authentication hashes and file metadata. We do NOT store the actual graphical password or the original file. Only SHA-256 hash of click points and encrypted file path is stored, ensuring high security.
+
+We have 2 main tables:
+1.  *users* - Stores user credentials and hashed graphical password
+2.  *files* - Stores encrypted file details mapped to users
+3.  *login_logs* (optional) - For security auditing
+
+Tolerance value: 10-15 pixels is allowed during click verification to handle minor variations.
+
+---
+
+*1. SQL SCHEMA - MySQL (Direct DB ku)*
+
+Itha phpMyAdmin la paste panna podhum.
+-- DATABASE CREATION
+CREATE DATABASE secure_cloud_db;
+USE secure_cloud_db;
+
+-- TABLE 1: USERS TABLE
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL, -- For fallback text password
+    graphical_hash VARCHAR(255) NOT NULL, -- SHA-256 hash of points
+    salt VARCHAR(100) NOT NULL,
+    image_set_id INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL
+);
+
+-- TABLE 2: FILES TABLE
+CREATE TABLE files (
+    file_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    file_name_original VARCHAR(255) NOT NULL,
+    file_name_encrypted VARCHAR(255) NOT NULL,
+    cloud_path VARCHAR(500) NOT NULL, -- S3 URL
+    file_size BIGINT,
+    file_type VARCHAR(50),
+    encryption_key_hash VARCHAR(255), -- Hash of key, not actual key
+    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- TABLE 3: LOGIN LOGS FOR SECURITY
+CREATE TABLE login_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(50),
+    status ENUM('SUCCESS','FAILED') NOT NULL,
+    attempt_type VARCHAR(50), -- 'GRAPHICAL'
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- TABLE 4: GRAPHICAL POINTS REFERENCE (For CCP Method)
+CREATE TABLE graphical_images (
+    image_id INT AUTO_INCREMENT PRIMARY KEY,
+    image_path VARCHAR(500) NOT NULL,
+    set_id INT NOT NULL
+);
+*2. PYTHON MODELS - For Django (models.py)*
+
+Django use panra na ithu:
+models.py
+from django.db import models
+from django.contrib.auth.models import User
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    graphical_hash = models.CharField(max_length=255) # Stores SHA256 of points like "120,340|200,150|..."
+    salt = models.CharField(max_length=100)
+    image_set_id = models.IntegerField(default=1)
+    
+    def __str__(self):
+        return f"{self.user.username} - Graphical Auth"
+
+class SecureFile(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    file_name_original = models.CharField(max_length=255)
+    file_name_encrypted = models.CharField(max_length=255)
+    cloud_path = models.URLField(max_length=500) # S3 link
+    file_size = models.BigIntegerField()
+    file_type = models.CharField(max_length=50)
+    upload_date = models.DateTimeField(auto_now_add=True)
+    is_encrypted = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.file_name_original
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    login_time = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField()
+    status = models.CharField(max_length=10, choices=[('SUCCESS','SUCCESS'),('FAILED','FAILED')])
+*3. PYTHON MODELS - For Flask + SQLAlchemy*
+
+Flask use panra na ithu best:
+models.py for Flask
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+db = SQLAlchemy()
+
+class Users(db.Model):
+    __tablename__ = 'users'
+    user_id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    graphical_hash = db.Column(db.String(255), nullable=False)
+    salt = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    files = db.relationship('Files', backref='owner', lazy=True, cascade="all, delete")
+
+class Files(db.Model):
+    __tablename__ = 'files'
+    file_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    file_name_original = db.Column(db.String(255), nullable=False)
+    file_name_encrypted = db.Column(db.String(255), nullable=False)
+    cloud_path = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.BigInteger)
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+*REPORT LA EZHTHA VENDIYA EXPLANATION*
+
+*Why this schema?*
+- `graphical_hash` la direct-a points save pannala, SHA-256 hash than save panrom. Hacker DB ah thirudina kooda original click points theriyathu.
+- `Files` table la file-a encrypt panni S3 la store panra path mattum than iruku, original file server la illa.
+- One-to-Many relationship: Oru user pala files upload pannalam.
+
+Itha potta *Chapter 4: Database Design* mudinjidum.
+
+Unakku next enna venum?
+1.  *Flask App - full working code* for registration + graphical login?
+2.  *Encryption / Decryption code*?
+
+Sollu, naan next module ah tharen.
